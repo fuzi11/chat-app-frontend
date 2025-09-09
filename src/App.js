@@ -1,171 +1,222 @@
-import './App.css';
+import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
-import { useEffect, useState, useRef } from 'react';
-
-// Ganti dengan URL backend Railway Anda yang benar
-const socket = io.connect("https://chat-app-backend-production-045f.up.railway.app/");
+import './App.css';
 
 // ===================================================================
-// KOMPONEN UNTUK HALAMAN LOGIN
+// KONFIGURASI UTAMA - Ganti dengan URL dan kredensial Anda
+// ===================================================================
+const SOCKET_URL = "https://chat-app-backend-production-045f.up.railway.app/";
+const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/NAMA_CLOUD_ANDA/image/upload"; // Ganti NAMA_CLOUD_ANDA
+const CLOUDINARY_UPLOAD_PRESET = "NAMA_UPLOAD_PRESET_ANDA"; // Ganti NAMA_UPLOAD_PRESET_ANDA
+
+const socket = io.connect(SOCKET_URL);
+
+// ===================================================================
+// KOMPONEN LOGIN
 // ===================================================================
 function LoginPage({ onLoginSuccess }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!username) {
       setError('Username tidak boleh kosong.');
       return;
     }
-
-    const FUZI_SECRET_PASSWORD = "qwerty123456789";
-
-    // Cek jika user adalah fuzi
-    if (username.toLowerCase() === 'fuzi') {
-      if (password === FUZI_SECRET_PASSWORD) {
-        onLoginSuccess({ name: 'fuzi', isModerator: true });
-      } else {
-        setError('Password salah untuk moderator.');
+    setLoading(true);
+    setError('');
+    try {
+      const response = await fetch(`${SOCKET_URL}/api/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message);
       }
-    } else {
-      // Login untuk user biasa (tanpa password)
-      onLoginSuccess({ name: username, isModerator: false });
+      onLoginSuccess(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="login-container">
-      <h2>Login ke Chat</h2>
-      <input
-        type="text"
-        placeholder="Username"
-        value={username}
-        onChange={(e) => setUsername(e.target.value)}
-      />
-      <input
-        type="password"
-        placeholder="Password (khusus fuzi)"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-      />
-      <button onClick={handleLogin}>Masuk</button>
+      <h2>Selamat Datang</h2>
+      <p>Silakan masuk untuk memulai chat</p>
+      <input type="text" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} />
+      <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleLogin()} />
+      <button onClick={handleLogin} disabled={loading}>{loading ? 'Loading...' : 'Masuk'}</button>
       {error && <p className="error-message">{error}</p>}
     </div>
   );
-
-       // ... (di dalam komponen LoginPage)
-
-const handleLogin = async () => { // Ubah menjadi async
-  if (!username) {
-    setError('Username tidak boleh kosong.');
-    return;
-  }
-
-  try {
-    const response = await fetch('https://URL-BACKEND-ANDA/login', { // Ganti dengan URL Railway
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
-    });
-    
-    const data = await response.json();
-
-    if (!response.ok) {
-      setError(data.message); // Tampilkan error dari server
-    } else {
-      onLoginSuccess(data); // Kirim data user yang berhasil login
-    }
-  } catch (err) {
-    setError("Tidak bisa terhubung ke server.");
-  }
-};
 }
 
 
 // ===================================================================
-// KOMPONEN UNTUK HALAMAN CHAT
+// KOMPONEN PROFIL
 // ===================================================================
-function ChatPage({ user, onLogout }) {
-  const [message, setMessage] = useState('');
-  const [chatLog, setChatLog] = useState([]);
+function ProfilePage({ user, onProfileUpdated, onBack }) {
+    const [newUsername, setNewUsername] = useState(user.username);
+    const [isUploading, setIsUploading] = useState(false);
+    const [error, setError] = useState('');
+
+    const handleImageUpload = async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        setIsUploading(true);
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+
+        try {
+            const response = await fetch(CLOUDINARY_URL, { method: 'POST', body: formData });
+            const data = await response.json();
+            if (!response.ok) throw new Error('Upload gagal');
+            updateProfile(user.username, data.secure_url);
+        } catch (err) {
+            setError('Gagal mengunggah gambar.');
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    const handleNameChange = () => {
+        if(newUsername && newUsername !== user.username) {
+            updateProfile(newUsername, user.profilePictureUrl);
+        }
+    };
+
+    const updateProfile = async (username, profilePictureUrl) => {
+        try {
+            const response = await fetch(`${SOCKET_URL}/api/users/${user.userId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ newUsername: username, newProfilePictureUrl: profilePictureUrl })
+            });
+            const updatedUser = await response.json();
+            if (!response.ok) throw new Error('Update profil gagal.');
+            onProfileUpdated(updatedUser); // Update state di komponen utama
+            alert('Profil berhasil diperbarui!');
+        } catch (err) {
+            setError(err.message);
+        }
+    };
+
+    return (
+        <div className="profile-container">
+            <button onClick={onBack} className="back-button">← Kembali ke Chat</button>
+            <h2>Profil Anda</h2>
+            <img src={user.profilePictureUrl || 'default_avatar.png'} alt="Avatar" className="profile-avatar" />
+            <p>Ganti foto profil:</p>
+            <input type="file" onChange={handleImageUpload} disabled={isUploading}/>
+            {isUploading && <p>Mengunggah...</p>}
+            <p>Ganti username:</p>
+            <input type="text" value={newUsername} onChange={(e) => setNewUsername(e.target.value)} />
+            <button onClick={handleNameChange}>Simpan Nama</button>
+            {error && <p className="error-message">{error}</p>}
+        </div>
+    );
+}
+
+// ===================================================================
+// KOMPONEN CHAT UTAMA
+// ===================================================================
+function ChatPage({ user, onLogout, onNavigateToProfile }) {
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [onlineUsers, setOnlineUsers] = useState([]);
   const chatBodyRef = useRef(null);
 
-  const scrollToBottom = () => {
-    if (chatBodyRef.current) {
-      chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
-    }
-  };
-
-  const sendMessage = () => {
-    if (message) {
-      const messageData = { 
-        user: user.name, 
-        message: message,
-        isModerator: user.isModerator 
-      };
-      socket.emit('send_message', messageData);
-      
-      const ownMessage = { 
-        ...messageData, 
-        timestamp: new Date().toISOString(), 
-        fromSelf: true 
-      };
-      setChatLog((list) => [...list, ownMessage]);
-      setMessage('');
-    }
-  };
-
   useEffect(() => {
-    socket.on('chat_history', (history) => setChatLog(history));
-    socket.on('receive_message', (data) => setChatLog((list) => [...list, data]));
+    socket.emit('user_online', { userId: user.userId, username: user.username });
+
+    socket.on('chat_history', (history) => setMessages(history));
+    socket.on('receive_message', (msg) => setMessages(prev => [...prev, msg]));
+    socket.on('online_users_list', (users) => setOnlineUsers(users));
+    socket.on('message_updated', (updatedMsg) => {
+      setMessages(prev => prev.map(msg => msg._id === updatedMsg._id ? updatedMsg : msg));
+    });
+
     return () => {
       socket.off('chat_history');
       socket.off('receive_message');
+      socket.off('online_users_list');
+      socket.off('message_updated');
     };
-  }, []);
+  }, [user.userId, user.username]);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [chatLog]);
-  
-  const formatTimestamp = (timestamp) => {
-    if (!timestamp) return '';
-    return new Date(timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    if (chatBodyRef.current) {
+      chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  const handleSendMessage = () => {
+    if (newMessage.trim()) {
+      const messageData = {
+        userId: user.userId,
+        username: user.username,
+        message: newMessage,
+        isModerator: user.isModerator,
+      };
+      socket.emit('send_message', messageData);
+      setNewMessage('');
+    }
   };
+  
+  const handleDeleteMessage = (messageId) => {
+      socket.emit('delete_message', { messageId, userId: user.userId, isModerator: user.isModerator });
+  };
+  
+  const formatTimestamp = (timestamp) => new Date(timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 
   return (
-    <div className="chat-container">
-      <div className="chat-header">
-        <div>
-          <h2>Real-Time Chat</h2>
-          <p>Login sebagai: <strong>{user.name}</strong></p>
-        </div>
-        <button onClick={onLogout} className="logout-button">Keluar</button>
-      </div>
-      <div className="chat-body" ref={chatBodyRef}>
-        {chatLog.map((content, index) => (
-          <div key={index} className={content.fromSelf ? "message-self" : "message-other"}>
-            <div className="message-content"><p>{content.message}</p></div>
-            <div className="message-meta">
-              <span style={{ color: content.isModerator ? 'red' : 'inherit', fontWeight: content.isModerator ? 'bold' : 'normal' }}>
-                {content.fromSelf ? "You" : content.user}
-                {content.isModerator && ' (Moderator)'}
-              </span>
-              <span>{formatTimestamp(content.timestamp)}</span>
+    <div className="chat-layout">
+      <div className="sidebar">
+        <div className="profile-summary">
+            <img src={user.profilePictureUrl || 'default_avatar.png'} alt="Avatar" />
+            <h4>{user.username}</h4>
+            <div className="profile-actions">
+                <button onClick={onNavigateToProfile}>Profil</button>
+                <button onClick={onLogout}>Keluar</button>
             </div>
-          </div>
-        ))}
+        </div>
+        <div className="online-users">
+          <h4>Online ({onlineUsers.length})</h4>
+          <ul>
+            {onlineUsers.map(userId => <li key={userId}>User {userId}</li>)}
+          </ul>
+        </div>
       </div>
-      <div className="chat-footer">
-        <input 
-          type="text"
-          value={message} 
-          placeholder="Ketik pesan..." 
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyPress={(e) => {e.key === 'Enter' && sendMessage()}}
-        />
-        <button onClick={sendMessage}>Kirim</button>
+      <div className="chat-main">
+        <div className="chat-body" ref={chatBodyRef}>
+          {messages.map(msg => (
+            <div key={msg._id} className={`message-bubble ${msg.senderId === user.userId ? 'self' : ''}`}>
+              <div className="message-header">
+                <span style={{ color: msg.isModerator ? '#ff5e57' : '#0fb9b1', fontWeight: 'bold' }}>
+                  {msg.senderUsername}
+                  {msg.isModerator && ' (Mod)'}
+                </span>
+                <span className="timestamp">{formatTimestamp(msg.timestamp)}</span>
+              </div>
+              <p className="message-text">{msg.message}</p>
+              {(msg.senderId === user.userId || user.isModerator) && !msg.isDeleted &&
+                <button className="delete-button" onClick={() => handleDeleteMessage(msg._id)}>Hapus</button>
+              }
+            </div>
+          ))}
+        </div>
+        <div className="chat-footer">
+          <input type="text" value={newMessage} placeholder="Ketik pesan..." onChange={(e) => setNewMessage(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()} />
+          <button onClick={handleSendMessage}>Kirim</button>
+        </div>
       </div>
     </div>
   );
@@ -173,28 +224,39 @@ function ChatPage({ user, onLogout }) {
 
 
 // ===================================================================
-// KOMPONEN UTAMA APP (PENGATUR TAMPILAN)
+// KOMPONEN UTAMA APP (PENGATUR)
 // ===================================================================
 function App() {
-  const [user, setUser] = useState(null); // Awalnya null, berarti belum login
+  const [user, setUser] = useState(null);
+  const [view, setView] = useState('login'); // 'login', 'chat', 'profile'
 
   const handleLoginSuccess = (loggedInUser) => {
     setUser(loggedInUser);
+    setView('chat');
+  };
+
+  const handleProfileUpdated = (updatedUser) => {
+      setUser(updatedUser);
   };
 
   const handleLogout = () => {
+    socket.emit('user_offline', user.userId);
     setUser(null);
+    setView('login');
   };
 
-  return (
-    <div className="App">
-      {!user ? (
-        <LoginPage onLoginSuccess={handleLoginSuccess} />
-      ) : (
-        <ChatPage user={user} onLogout={handleLogout} />
-      )}
-    </div>
-  );
+  const renderView = () => {
+    switch (view) {
+      case 'chat':
+        return <ChatPage user={user} onLogout={handleLogout} onNavigateToProfile={() => setView('profile')} />;
+      case 'profile':
+        return <ProfilePage user={user} onProfileUpdated={handleProfileUpdated} onBack={() => setView('chat')} />;
+      default:
+        return <LoginPage onLoginSuccess={handleLoginSuccess} />;
+    }
+  };
+
+  return <div className="App">{renderView()}</div>;
 }
 
 export default App;
