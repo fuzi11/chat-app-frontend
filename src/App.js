@@ -2,16 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 import './App.css';
 
-// ===================================================================
-// KONFIGURASI UTAMA - Pastikan URL ini benar
-// ===================================================================
-const SOCKET_URL = "https://chat-app-backend-production-045f.up.railway.app"; // TANPA GARIS MIRING DI AKHIR
+const SOCKET_URL = "https://chat-app-backend-production-045f.up.railway.app"; // Ganti jika URL Anda berbeda
 
 const socket = io.connect(SOCKET_URL);
 
-// ===================================================================
-// KOMPONEN LOGIN
-// ===================================================================
 function LoginPage({ onLoginSuccess }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -19,10 +13,7 @@ function LoginPage({ onLoginSuccess }) {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!username) {
-      setError('Username tidak boleh kosong.');
-      return;
-    }
+    if (!username) { setError('Username tidak boleh kosong.'); return; }
     setLoading(true);
     setError('');
     try {
@@ -32,9 +23,7 @@ function LoginPage({ onLoginSuccess }) {
         body: JSON.stringify({ username, password })
       });
       const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message);
-      }
+      if (!response.ok) { throw new Error(data.message); }
       onLoginSuccess(data);
     } catch (err) {
       setError(err.message || "Tidak bisa terhubung ke server.");
@@ -55,10 +44,6 @@ function LoginPage({ onLoginSuccess }) {
   );
 }
 
-
-// ===================================================================
-// KOMPONEN PROFIL (TANPA UPLOAD FOTO)
-// ===================================================================
 function ProfilePage({ user, onProfileUpdated, onBack }) {
     const [newUsername, setNewUsername] = useState(user.username);
     const [error, setError] = useState('');
@@ -66,7 +51,6 @@ function ProfilePage({ user, onProfileUpdated, onBack }) {
 
     const handleNameChange = async () => {
         if(!newUsername || newUsername === user.username) return;
-
         setLoading(true);
         setError('');
         try {
@@ -99,9 +83,6 @@ function ProfilePage({ user, onProfileUpdated, onBack }) {
     );
 }
 
-// ===================================================================
-// KOMPONEN CHAT UTAMA
-// ===================================================================
 function ChatPage({ user, onLogout, onNavigateToProfile }) {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
@@ -196,9 +177,6 @@ function ChatPage({ user, onLogout, onNavigateToProfile }) {
   );
 }
 
-// ===================================================================
-// KOMPONEN UTAMA APP (PENGATUR)
-// ===================================================================
 function App() {
   const [user, setUser] = useState(null);
   const [view, setView] = useState('login');
