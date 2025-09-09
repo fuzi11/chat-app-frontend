@@ -117,3 +117,69 @@
 .message-meta span:first-child {
   font-weight: bold;
 }
+
+/* Style untuk Halaman Login */
+.login-container {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  width: 300px;
+  padding: 30px;
+  background-color: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.login-container h2 {
+  margin: 0 0 10px 0;
+  text-align: center;
+}
+
+.login-container input {
+  padding: 12px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 1rem;
+}
+
+.login-container button {
+  padding: 12px;
+  border: none;
+  background-color: #075e54;
+  color: white;
+  font-size: 1rem;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.login-container button:hover {
+  background-color: #128c7e;
+}
+
+.error-message {
+  color: red;
+  text-align: center;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+/* Style untuk Header Chat */
+.chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logout-button {
+  padding: 8px 15px;
+  border: none;
+  background-color: #dc3545;
+  color: white;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.logout-button:hover {
+  background-color: #c82333;
+}
