@@ -73,7 +73,7 @@ function ProfilePage({ user, onProfileUpdated, onBack }) {
             const response = await fetch(`${SOCKET_URL}/api/users/${user.userId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ newUsername: newUsername, newProfilePictureUrl: user.profilePictureUrl }) // URL foto tidak diubah
+                body: JSON.stringify({ newUsername: newUsername, newProfilePictureUrl: user.profilePictureUrl })
             });
             const updatedUser = await response.json();
             if (!response.ok) throw new Error('Update profil gagal.');
@@ -196,13 +196,12 @@ function ChatPage({ user, onLogout, onNavigateToProfile }) {
   );
 }
 
-
 // ===================================================================
 // KOMPONEN UTAMA APP (PENGATUR)
 // ===================================================================
 function App() {
   const [user, setUser] = useState(null);
-  const [view, setView] = useState('login'); // 'login', 'chat', 'profile'
+  const [view, setView] = useState('login');
 
   const handleLoginSuccess = (loggedInUser) => {
     setUser(loggedInUser);
