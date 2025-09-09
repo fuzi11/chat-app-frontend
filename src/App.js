@@ -1,72 +1,68 @@
 import './App.css';
 import io from 'socket.io-client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
-// --- LOG DIAGNOSTIK #1 ---
-console.log("File App.js berhasil dimuat.");
-
-// Ganti dengan URL backend Railway Anda yang sudah benar
-const backendUrl = "https://chat-app-backend-production-045f.up.railway.app/";
-console.log("Mencoba terhubung ke:", backendUrl); // LOG DIAGNOSTIK #2
-
-const socket = io.connect(backendUrl);
+// Ganti dengan URL backend Railway Anda yang benar
+const socket = io.connect("https://chat-app-backend-production-045f.up.railway.app/");
 
 function App() {
-  // --- LOG DIAGNOSTIK #3 ---
-  console.log("Komponen App sedang dirender.");
-
-  const [isConnected, setIsConnected] = useState(socket.connected);
-  const [chatLog, setChatLog] = useState([]);
-  const [message, setMessage] = useState('');
   const [user, setUser] = useState('');
+  const [message, setMessage] = useState('');
+  const [chatLog, setChatLog] = useState([]);
+  
+  // --- BARU: useRef untuk referensi ke elemen body chat ---
+  const chatBodyRef = useRef(null);
+
+  // --- BARU: Fungsi untuk otomatis scroll ke bawah ---
+  const scrollToBottom = () => {
+    if (chatBodyRef.current) {
+      chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
+    }
+  };
+
+  const sendMessage = () => {
+    if (message !== '' && user !== '') {
+      const messageData = { user, message };
+      socket.emit('send_message', messageData);
+      
+      const ownMessage = { 
+        ...messageData, 
+        timestamp: new Date().toISOString(), 
+        fromSelf: true 
+      };
+      setChatLog((list) => [...list, ownMessage]);
+      setMessage('');
+    }
+  };
 
   useEffect(() => {
-    // --- LOG DIAGNOSTIK #4 ---
-    console.log("useEffect hook berjalan. Menyiapkan event listeners...");
-
-    function onConnect() {
-      console.log("EVENT: 'connect' - Berhasil terhubung ke server!");
-      setIsConnected(true);
-    }
-
-    function onDisconnect() {
-      console.log("EVENT: 'disconnect' - Koneksi terputus.");
-      setIsConnected(false);
-    }
-
-    function onChatHistory(history) {
-      console.log("EVENT: 'chat_history' - Menerima riwayat chat:", history);
+    socket.on('chat_history', (history) => {
       setChatLog(history);
-    }
-    
-    function onReceiveMessage(newMessage) {
-        console.log("EVENT: 'receive_message' - Menerima pesan baru:", newMessage);
-      setChatLog(prevLog => [...prevLog, newMessage]);
-    }
+    });
 
-    socket.on('connect', onConnect);
-    socket.on('disconnect', onDisconnect);
-    socket.on('chat_history', onChatHistory);
-    socket.on('receive_message', onReceiveMessage);
+    socket.on('receive_message', (data) => {
+      setChatLog((list) => [...list, data]);
+    });
 
-    // Fungsi cleanup
     return () => {
-      console.log("Cleanup: Menghapus event listeners.");
-      socket.off('connect', onConnect);
-      socket.off('disconnect', onDisconnect);
-      socket.off('chat_history', onChatHistory);
-      socket.off('receive_message', onReceiveMessage);
+      socket.off('chat_history');
+      socket.off('receive_message');
     };
   }, []);
 
-  const sendMessage = () => {
-    if (user && message) {
-      const messageData = { user, message };
-      console.log("Mengirim pesan:", messageData);
-      socket.emit('send_message', messageData);
-      setChatLog(prevLog => [...prevLog, { ...messageData, fromSelf: true }]);
-      setMessage('');
-    }
+  // --- BARU: useEffect untuk memanggil auto-scroll setiap kali ada pesan baru ---
+  useEffect(() => {
+    scrollToBottom();
+  }, [chatLog]);
+
+  // --- BARU: Fungsi untuk memformat timestamp (Waktu Indonesia Barat) ---
+  const formatTimestamp = (timestamp) => {
+    if (!timestamp) return '';
+    return new Date(timestamp).toLocaleTimeString('id-ID', {
+      timeZone: 'Asia/Jakarta', // Set zona waktu ke WIB
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   return (
@@ -74,18 +70,38 @@ function App() {
       <div className="chat-container">
         <div className="chat-header">
           <h2>Real-Time Chat</h2>
-          <p>Status Koneksi: {isConnected ? 'Terhubung ✅' : 'Terputus ❌'}</p>
         </div>
-        <div className="chat-body">
+        {/* --- BARU: Tambahkan ref ke chat-body --- */}
+        <div className="chat-body" ref={chatBodyRef}>
           {chatLog.map((content, index) => (
             <div key={index} className={content.fromSelf ? "message-self" : "message-other"}>
-              <p><strong>{content.user || (content.fromSelf ? 'You' : 'Anonymous')}:</strong> {content.message}</p>
+              <div className="message-content">
+                <p>{content.message}</p>
+              </div>
+              <div className="message-meta">
+                {/* --- BARU: Logika untuk memberi warna pada username 'fuzi' --- */}
+                <span style={{ color: content.user && content.user.toLowerCase() === 'fuzi' ? 'red' : 'inherit' }}>
+                  {content.fromSelf ? "You" : content.user}
+                </span>
+                {/* --- BARU: Tampilkan timestamp --- */}
+                <span>{formatTimestamp(content.timestamp)}</span>
+              </div>
             </div>
           ))}
         </div>
         <div className="chat-footer">
-          <input type="text" placeholder="Nama Anda" onChange={e => setUser(e.target.value)} />
-          <input type="text" value={message} placeholder="Ketik pesan..." onChange={e => setMessage(e.target.value)} onKeyPress={e => e.key === 'Enter' && sendMessage()} />
+          <input 
+            type="text" 
+            placeholder="Nama Anda..." 
+            onChange={(event) => setUser(event.target.value)}
+          />
+          <input 
+            type="text"
+            value={message} 
+            placeholder="Ketik pesan..." 
+            onChange={(event) => setMessage(event.target.value)}
+            onKeyPress={(event) => {event.key === 'Enter' && sendMessage()}}
+          />
           <button onClick={sendMessage}>Kirim</button>
         </div>
       </div>
