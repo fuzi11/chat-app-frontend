@@ -3,7 +3,7 @@ import io from 'socket.io-client';
 import { useEffect, useState, useRef } from 'react';
 
 // Ganti dengan URL backend Railway Anda
-const socket = io.connect("https://chat-app-backend-production-045f.up.railway.app");
+const socket = io.connect("https://chat-app-backend-production-045f.up.railway.app/");
 
 function App() {
   const [user, setUser] = useState('');
