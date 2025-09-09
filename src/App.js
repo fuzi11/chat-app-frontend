@@ -1,100 +1,91 @@
 import './App.css';
 import io from 'socket.io-client';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 
-// Ganti dengan URL backend Railway Anda
-const socket = io.connect("https://chat-app-backend-production-045f.up.railway.app/");
+// --- LOG DIAGNOSTIK #1 ---
+console.log("File App.js berhasil dimuat.");
+
+// Ganti dengan URL backend Railway Anda yang sudah benar
+const backendUrl = "https://chat-app-backend-production-045f.up.railway.app/";
+console.log("Mencoba terhubung ke:", backendUrl); // LOG DIAGNOSTIK #2
+
+const socket = io.connect(backendUrl);
 
 function App() {
-  const [user, setUser] = useState('');
-  const [message, setMessage] = useState('');
+  // --- LOG DIAGNOSTIK #3 ---
+  console.log("Komponen App sedang dirender.");
+
+  const [isConnected, setIsConnected] = useState(socket.connected);
   const [chatLog, setChatLog] = useState([]);
-  const chatBodyRef = useRef(null); // Untuk auto-scroll
-
-  // Fungsi untuk auto-scroll ke pesan terbaru
-  const scrollToBottom = () => {
-    if (chatBodyRef.current) {
-      chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
-    }
-  };
-
-  // Kirim pesan
-  const sendMessage = () => {
-    if (message !== '' && user !== '') {
-      const messageData = { user, message };
-      socket.emit('send_message', messageData);
-      
-      // Tampilkan pesan kita sendiri, sekarang termasuk timestamp
-      const ownMessage = { ...messageData, timestamp: new Date().toISOString(), fromSelf: true };
-      setChatLog((list) => [...list, ownMessage]);
-      setMessage('');
-    }
-  };
+  const [message, setMessage] = useState('');
+  const [user, setUser] = useState('');
 
   useEffect(() => {
-    // Listener untuk menerima riwayat chat saat pertama kali terhubung
-    socket.on('chat_history', (history) => {
+    // --- LOG DIAGNOSTIK #4 ---
+    console.log("useEffect hook berjalan. Menyiapkan event listeners...");
+
+    function onConnect() {
+      console.log("EVENT: 'connect' - Berhasil terhubung ke server!");
+      setIsConnected(true);
+    }
+
+    function onDisconnect() {
+      console.log("EVENT: 'disconnect' - Koneksi terputus.");
+      setIsConnected(false);
+    }
+
+    function onChatHistory(history) {
+      console.log("EVENT: 'chat_history' - Menerima riwayat chat:", history);
       setChatLog(history);
-    });
+    }
+    
+    function onReceiveMessage(newMessage) {
+        console.log("EVENT: 'receive_message' - Menerima pesan baru:", newMessage);
+      setChatLog(prevLog => [...prevLog, newMessage]);
+    }
 
-    // Listener untuk menerima pesan baru dari user lain
-    socket.on('receive_message', (data) => {
-      setChatLog((list) => [...list, data]);
-    });
+    socket.on('connect', onConnect);
+    socket.on('disconnect', onDisconnect);
+    socket.on('chat_history', onChatHistory);
+    socket.on('receive_message', onReceiveMessage);
 
-    // Cleanup listeners
+    // Fungsi cleanup
     return () => {
-      socket.off('chat_history');
-      socket.off('receive_message');
+      console.log("Cleanup: Menghapus event listeners.");
+      socket.off('connect', onConnect);
+      socket.off('disconnect', onDisconnect);
+      socket.off('chat_history', onChatHistory);
+      socket.off('receive_message', onReceiveMessage);
     };
   }, []);
 
-  // Auto-scroll setiap kali chatLog berubah
-  useEffect(() => {
-    scrollToBottom();
-  }, [chatLog]);
-
-  // Fungsi untuk format waktu
-  const formatTimestamp = (timestamp) => {
-    if (!timestamp) return '';
-    return new Date(timestamp).toLocaleTimeString('id-ID', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+  const sendMessage = () => {
+    if (user && message) {
+      const messageData = { user, message };
+      console.log("Mengirim pesan:", messageData);
+      socket.emit('send_message', messageData);
+      setChatLog(prevLog => [...prevLog, { ...messageData, fromSelf: true }]);
+      setMessage('');
+    }
   };
 
   return (
     <div className="App">
       <div className="chat-container">
         <div className="chat-header">
-          <h2>Real-Time Chat (with History)</h2>
+          <h2>Real-Time Chat</h2>
+          <p>Status Koneksi: {isConnected ? 'Terhubung ✅' : 'Terputus ❌'}</p>
         </div>
-        <div className="chat-body" ref={chatBodyRef}>
+        <div className="chat-body">
           {chatLog.map((content, index) => (
             <div key={index} className={content.fromSelf ? "message-self" : "message-other"}>
-              <div className="message-content">
-                <p>{content.message}</p>
-              </div>
-              <div className="message-meta">
-                <span>{content.fromSelf ? "You" : content.user}</span>
-                <span>{formatTimestamp(content.timestamp)}</span>
-              </div>
+              <p><strong>{content.user || (content.fromSelf ? 'You' : 'Anonymous')}:</strong> {content.message}</p>
             </div>
           ))}
         </div>
         <div className="chat-footer">
-          <input 
-            type="text" 
-            placeholder="Nama Anda..." 
-            onChange={(event) => setUser(event.target.value)}
-          />
-          <input 
-            type="text"
-            value={message} 
-            placeholder="Ketik pesan..." 
-            onChange={(event) => setMessage(event.target.value)}
-            onKeyPress={(event) => {event.key === 'Enter' && sendMessage()}}
-          />
+          <input type="text" placeholder="Nama Anda" onChange={e => setUser(e.target.value)} />
+          <input type="text" value={message} placeholder="Ketik pesan..." onChange={e => setMessage(e.target.value)} onKeyPress={e => e.key === 'Enter' && sendMessage()} />
           <button onClick={sendMessage}>Kirim</button>
         </div>
       </div>
