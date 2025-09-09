@@ -53,6 +53,33 @@ function LoginPage({ onLoginSuccess }) {
       {error && <p className="error-message">{error}</p>}
     </div>
   );
+
+       // ... (di dalam komponen LoginPage)
+
+const handleLogin = async () => { // Ubah menjadi async
+  if (!username) {
+    setError('Username tidak boleh kosong.');
+    return;
+  }
+
+  try {
+    const response = await fetch('https://URL-BACKEND-ANDA/login', { // Ganti dengan URL Railway
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    
+    const data = await response.json();
+
+    if (!response.ok) {
+      setError(data.message); // Tampilkan error dari server
+    } else {
+      onLoginSuccess(data); // Kirim data user yang berhasil login
+    }
+  } catch (err) {
+    setError("Tidak bisa terhubung ke server.");
+  }
+};
 }
 
 
