@@ -3,9 +3,9 @@ import io from 'socket.io-client';
 import './App.css';
 
 // ===================================================================
-// KONFIGURASI UTAMA - Ganti dengan URL dan kredensial Anda
+// KONFIGURASI UTAMA - Pastikan URL ini benar
 // ===================================================================
-const SOCKET_URL = "https://chat-app-backend-production-045f.up.railway.app";
+const SOCKET_URL = "https://chat-app-backend-production-045f.up.railway.app"; // <-- TANPA GARIS MIRING DI AKHIR
 const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/NAMA_CLOUD_ANDA/image/upload"; // Ganti NAMA_CLOUD_ANDA
 const CLOUDINARY_UPLOAD_PRESET = "NAMA_UPLOAD_PRESET_ANDA"; // Ganti NAMA_UPLOAD_PRESET_ANDA
 
@@ -28,7 +28,8 @@ function LoginPage({ onLoginSuccess }) {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch(`${SOCKET_URL}api/login`, {
+      // Pastikan ada '/' sebelum 'api/login'
+      const response = await fetch(`${SOCKET_URL}/api/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
@@ -39,7 +40,7 @@ function LoginPage({ onLoginSuccess }) {
       }
       onLoginSuccess(data);
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Tidak bisa terhubung ke server.");
     } finally {
       setLoading(false);
     }
@@ -71,6 +72,7 @@ function ProfilePage({ user, onProfileUpdated, onBack }) {
         if (!file) return;
 
         setIsUploading(true);
+        setError('');
         const formData = new FormData();
         formData.append('file', file);
         formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
@@ -94,6 +96,7 @@ function ProfilePage({ user, onProfileUpdated, onBack }) {
     };
 
     const updateProfile = async (username, profilePictureUrl) => {
+        setError('');
         try {
             const response = await fetch(`${SOCKET_URL}/api/users/${user.userId}`, {
                 method: 'PUT',
@@ -102,7 +105,7 @@ function ProfilePage({ user, onProfileUpdated, onBack }) {
             });
             const updatedUser = await response.json();
             if (!response.ok) throw new Error('Update profil gagal.');
-            onProfileUpdated(updatedUser); // Update state di komponen utama
+            onProfileUpdated(updatedUser);
             alert('Profil berhasil diperbarui!');
         } catch (err) {
             setError(err.message);
