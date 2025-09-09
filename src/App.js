@@ -5,9 +5,7 @@ import './App.css';
 // ===================================================================
 // KONFIGURASI UTAMA - Pastikan URL ini benar
 // ===================================================================
-const SOCKET_URL = "https://chat-app-backend-production-045f.up.railway.app"; // <-- TANPA GARIS MIRING DI AKHIR
-const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/NAMA_CLOUD_ANDA/image/upload"; // Ganti NAMA_CLOUD_ANDA
-const CLOUDINARY_UPLOAD_PRESET = "NAMA_UPLOAD_PRESET_ANDA"; // Ganti NAMA_UPLOAD_PRESET_ANDA
+const SOCKET_URL = "https://chat-app-backend-production-045f.up.railway.app"; // TANPA GARIS MIRING DI AKHIR
 
 const socket = io.connect(SOCKET_URL);
 
@@ -28,7 +26,6 @@ function LoginPage({ onLoginSuccess }) {
     setLoading(true);
     setError('');
     try {
-      // Pastikan ada '/' sebelum 'api/login'
       const response = await fetch(`${SOCKET_URL}/api/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -60,55 +57,32 @@ function LoginPage({ onLoginSuccess }) {
 
 
 // ===================================================================
-// KOMPONEN PROFIL
+// KOMPONEN PROFIL (TANPA UPLOAD FOTO)
 // ===================================================================
 function ProfilePage({ user, onProfileUpdated, onBack }) {
     const [newUsername, setNewUsername] = useState(user.username);
-    const [isUploading, setIsUploading] = useState(false);
     const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
 
-    const handleImageUpload = async (event) => {
-        const file = event.target.files[0];
-        if (!file) return;
+    const handleNameChange = async () => {
+        if(!newUsername || newUsername === user.username) return;
 
-        setIsUploading(true);
-        setError('');
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-
-        try {
-            const response = await fetch(CLOUDINARY_URL, { method: 'POST', body: formData });
-            const data = await response.json();
-            if (!response.ok) throw new Error('Upload gagal');
-            updateProfile(user.username, data.secure_url);
-        } catch (err) {
-            setError('Gagal mengunggah gambar.');
-        } finally {
-            setIsUploading(false);
-        }
-    };
-
-    const handleNameChange = () => {
-        if(newUsername && newUsername !== user.username) {
-            updateProfile(newUsername, user.profilePictureUrl);
-        }
-    };
-
-    const updateProfile = async (username, profilePictureUrl) => {
+        setLoading(true);
         setError('');
         try {
             const response = await fetch(`${SOCKET_URL}/api/users/${user.userId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ newUsername: username, newProfilePictureUrl: profilePictureUrl })
+                body: JSON.stringify({ newUsername: newUsername, newProfilePictureUrl: user.profilePictureUrl }) // URL foto tidak diubah
             });
             const updatedUser = await response.json();
             if (!response.ok) throw new Error('Update profil gagal.');
             onProfileUpdated(updatedUser);
-            alert('Profil berhasil diperbarui!');
+            alert('Username berhasil diperbarui!');
         } catch (err) {
             setError(err.message);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -116,13 +90,10 @@ function ProfilePage({ user, onProfileUpdated, onBack }) {
         <div className="profile-container">
             <button onClick={onBack} className="back-button">← Kembali ke Chat</button>
             <h2>Profil Anda</h2>
-            <img src={user.profilePictureUrl || 'default_avatar.png'} alt="Avatar" className="profile-avatar" />
-            <p>Ganti foto profil:</p>
-            <input type="file" onChange={handleImageUpload} disabled={isUploading}/>
-            {isUploading && <p>Mengunggah...</p>}
+            <img src={user.profilePictureUrl || 'https://via.placeholder.com/120'} alt="Avatar" className="profile-avatar" />
             <p>Ganti username:</p>
             <input type="text" value={newUsername} onChange={(e) => setNewUsername(e.target.value)} />
-            <button onClick={handleNameChange}>Simpan Nama</button>
+            <button onClick={handleNameChange} disabled={loading}>{loading ? 'Menyimpan...' : 'Simpan Nama'}</button>
             {error && <p className="error-message">{error}</p>}
         </div>
     );
@@ -184,7 +155,7 @@ function ChatPage({ user, onLogout, onNavigateToProfile }) {
     <div className="chat-layout">
       <div className="sidebar">
         <div className="profile-summary">
-            <img src={user.profilePictureUrl || 'default_avatar.png'} alt="Avatar" />
+            <img src={user.profilePictureUrl || 'https://via.placeholder.com/80'} alt="Avatar" />
             <h4>{user.username}</h4>
             <div className="profile-actions">
                 <button onClick={onNavigateToProfile}>Profil</button>
