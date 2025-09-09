@@ -5,7 +5,7 @@ import './App.css';
 // ===================================================================
 // KONFIGURASI UTAMA - Ganti dengan URL dan kredensial Anda
 // ===================================================================
-const SOCKET_URL = "https://chat-app-backend-production-045f.up.railway.app/";
+const SOCKET_URL = "https://chat-app-backend-production-045f.up.railway.app";
 const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/NAMA_CLOUD_ANDA/image/upload"; // Ganti NAMA_CLOUD_ANDA
 const CLOUDINARY_UPLOAD_PRESET = "NAMA_UPLOAD_PRESET_ANDA"; // Ganti NAMA_UPLOAD_PRESET_ANDA
 
@@ -28,7 +28,7 @@ function LoginPage({ onLoginSuccess }) {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch(`${SOCKET_URL}/api/login`, {
+      const response = await fetch(`${SOCKET_URL}api/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
